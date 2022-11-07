@@ -38,7 +38,7 @@ class _MyAppState extends State<MyApp> {
 
     print('encryptText: $encryptText');
     //decrypt
-    var decryptText = await FlutterAesEcbPkcs5.decryptString('13DA6A67C0F7FE572A257260E6DDF3C0','0c22384e0c22384e2022384e0c22384e0c22384e0c22384e2022384e0c22384e');
+    var decryptText = await FlutterAesEcbPkcs5.decryptString('13DA6A67C0F7FE572A257260E6DDF3C013DA6A67C0F7FE572A257260E6DDF3C0','0c22384e0c22384e2022384e0c22384e0c22384e0c22384e2022384e0c22384e');
 
     print('decryptText: ${ hex.encode( utf8.encode(decryptText) )}');
 

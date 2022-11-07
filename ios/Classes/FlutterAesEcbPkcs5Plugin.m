@@ -167,39 +167,42 @@
 //    NSLog(@"publicKey->publicKey->%s",publicKey);
 //    NSLog(@"vkey->len->%d",strlen(publicKey));
 
-    char *data1 = [FlutterAesEcbPkcs5Plugin convertHexStrToChar:encryptText];
+    char *hexPlainText = [FlutterAesEcbPkcs5Plugin convertHexStrToChar:encryptText];
 
-    int plainTextBufferSize = [encryptText length] / 2 ;
 
     //NSLog(@"data1->plainTextBufferSize->%d",plainTextBufferSize);
 
-    NSData *content=[NSData dataWithBytes:data1 length:plainTextBufferSize];
+    // NSData *content=[NSData dataWithBytes:data1 length:plainTextBufferSize];
 
     //NSLog(@"data1->content->%@",content);
 
-    NSUInteger dataLength = [content length];
-    size_t bufferSize = dataLength + kCCBlockSizeAES128;
-    void *buffer = malloc(bufferSize);
+    // NSUInteger dataLength = [content length];
+    uint8_t *bufferPtr = NULL;
+    size_t bufferPtrSize = 0;
+    size_t movedBytes = 0;
+     bufferPtrSize = (strlen(hexPlainText) + kCCBlockSizeAES128) & ~(kCCBlockSizeAES128 - 1);
+    bufferPtr = malloc( bufferPtrSize * sizeof(uint8_t));
+    memset((void *)bufferPtr, 0x0, bufferPtrSize);
+    
 
-    size_t numBytesCrypted = 0;
     CCCryptorStatus cryptStatus = CCCrypt(kCCDecrypt,
                                           kCCAlgorithmAES128,
                                           kCCOptionPKCS7Padding|kCCOptionECBMode,
                                           publicKey,
-                                          kCCBlockSizeAES128,
-                                          NULL,
-                                          [content bytes],
-                                          dataLength,
-                                          buffer,
-                                          bufferSize,
-                                          &numBytesCrypted);
+                                          kCCKeySizeAES256,
+                                          nil,
+                                          hexPlainText,
+                                          strlen(hexPlainText),
+                                          (void *)bufferPtr,
+                                       bufferPtrSize,
+                                       &movedBytes);
 
     if (cryptStatus == kCCSuccess) {
-        NSData *resultData = [NSData dataWithBytesNoCopy:buffer length:numBytesCrypted];
+        NSData *myData = [NSData dataWithBytes:(const char *)bufferPtr length:(NSUInteger)movedBytes];
 
-        return [[NSString alloc] initWithData:resultData encoding:NSUTF8StringEncoding];
-    }
-    free(buffer);
+        NSString *result = [FlutterAesEcbPkcs5Plugin hexStringForData:myData];
+        return result;}
+    free(bufferPtr);
     return nil;
 }
 
