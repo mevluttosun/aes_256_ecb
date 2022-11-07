@@ -127,7 +127,7 @@ public class AesSecurity {
         }catch(Exception e){
             System.out.println(e.toString());
         }
-        return new String(output);
+        return Hex.encode(output);
     }
 }
 
