@@ -116,15 +116,18 @@ public class AesSecurity {
         byte[] output = null;
         
         try{
-            SecretKeySpec skey = new SecretKeySpec(decodeKey, ALGORITHM);
+            byte []keyByteArray = new byte[32];
+            System.arraycopy(decodeKey, 0, keyByteArray, 0, 32);
+
+            SecretKeySpec skey = new SecretKeySpec(keyByteArray, ALGORITHM);
             Cipher cipher = Cipher.getInstance(TRANSFORMATION);
             cipher.init(Cipher.DECRYPT_MODE, skey);
-            output = cipher.doFinal(parseHexStr2Byte(input));
+            output = cipher.doFinal(Hex.decode(input));
 
         }catch(Exception e){
             System.out.println(e.toString());
         }
-        return new String(output);
+        return Hex.encode(output);
     }
 }
 
