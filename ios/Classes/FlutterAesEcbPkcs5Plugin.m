@@ -160,51 +160,70 @@
 //解密
 +(NSString *)decrypPKCS5:(NSString *)encryptText WithKey:(NSString *)key
 {
+    // Convert hexadecimal string key to a byte array
+    uint8_t *keyBytes = (uint8_t *)hexStringToBytes(key);
 
-    //解密hex加密的密钥
-    char *publicKey = [FlutterAesEcbPkcs5Plugin convertHexStrToChar:key];
+    // Convert hexadecimal string to a byte array
+    uint8_t *data = (uint8_t *)hexStringToBytes(encryptText);
 
-//    NSLog(@"publicKey->publicKey->%s",publicKey);
-//    NSLog(@"vkey->len->%d",strlen(publicKey));
+    // Calculate the size of the decrypted data
+    size_t dataLength = [encryptText length] / 2;
+    size_t decryptedDataLength = dataLength;
 
-    char *hexPlainText = [FlutterAesEcbPkcs5Plugin convertHexStrToChar:encryptText];
+    // Create a buffer to hold the decrypted data
+    uint8_t *decryptedData = malloc(decryptedDataLength);
 
+    // Attempt to decrypt the data
+    CCCryptorStatus cryptStatus = CCCrypt(kCCDecrypt, kCCAlgorithmAES, kCCOptionECBMode,
+                                          keyBytes, kCCKeySizeAES256, NULL,
+                                          data, dataLength,
+                                          decryptedData, decryptedDataLength,
+                                          &decryptedDataLength);
 
-    //NSLog(@"data1->plainTextBufferSize->%d",plainTextBufferSize);
+    // Check for decryption errors
+    if (cryptStatus != kCCSuccess) {
+        // Handle error
+    }
 
-    // NSData *content=[NSData dataWithBytes:data1 length:plainTextBufferSize];
+    // Convert the decrypted data to a hexadecimal string
+    NSString *decryptedString = bytesToHexString(decryptedData, decryptedDataLength);
 
-    //NSLog(@"data1->content->%@",content);
+    // Free the allocated memory
+    free(keyBytes);
+    free(data);
+    free(decryptedData);
 
-    // NSUInteger dataLength = [content length];
-    uint8_t *bufferPtr = NULL;
-    size_t bufferPtrSize = 0;
-    size_t movedBytes = 0;
-     bufferPtrSize = (strlen(hexPlainText) + kCCBlockSizeAES128) & ~(kCCBlockSizeAES128 - 1);
-    bufferPtr = malloc( bufferPtrSize * sizeof(uint8_t));
-    memset((void *)bufferPtr, 0x0, bufferPtrSize);
-    
-
-    CCCryptorStatus cryptStatus = CCCrypt(kCCDecrypt,
-                                          kCCAlgorithmAES128,
-                                          kCCOptionPKCS7Padding|kCCOptionECBMode,
-                                          publicKey,
-                                          kCCKeySizeAES256,
-                                          nil,
-                                          hexPlainText,
-                                          strlen(hexPlainText),
-                                          (void *)bufferPtr,
-                                       bufferPtrSize,
-                                       &movedBytes);
-
-    if (cryptStatus == kCCSuccess) {
-        NSData *myData = [NSData dataWithBytes:(const char *)bufferPtr length:(NSUInteger)movedBytes];
-
-        NSString *result = [FlutterAesEcbPkcs5Plugin hexStringForData:myData];
-        return result;}
-    free(bufferPtr);
-    return nil;
+    // Return the decrypted string
+    return decryptedString;
 }
+
+// Define function to convert a hexadecimal string to a byte array
+void * hexStringToBytes(NSString *hexString) {
+    NSUInteger hexStringLength = [hexString length];
+    if (hexStringLength % 2 != 0) {
+        return NULL;
+    }
+    NSUInteger byteArrayLength = hexStringLength / 2;
+    uint8_t *byteArray = malloc(byteArrayLength);
+    for (NSUInteger i = 0; i < byteArrayLength; i++) {
+        NSString *hexByteString = [hexString substringWithRange:NSMakeRange(i * 2, 2)];
+        uint8_t byte = 0;
+        sscanf([hexByteString cStringUsingEncoding:NSASCIIStringEncoding], "%x", &byte);
+        byteArray[i] = byte;
+    }
+    return byteArray;
+}
+
+// Define function to convert a byte array to a hexadecimal string
+NSString * bytesToHexString(void *bytes, NSUInteger length) {
+    uint8_t *byteArray = (uint8_t *)bytes;
+    NSMutableString *hexString = [[NSMutableString alloc] initWithCapacity:length * 2];
+    for (NSUInteger i = 0; i < length; i++) {
+        [hexString appendFormat:@"%02x", byteArray[i]];
+    }
+    return hexString;
+}
+
 
 + (char *)convertHexStrToChar:(NSString *)hexString {
 
