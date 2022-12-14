@@ -86,76 +86,47 @@
     return  string;
 }
 
-
 //字符串加密(16进制)
-+ (NSString *)encyptPKCS5:(NSString *)plainText WithKey:(NSString *)key{
+//字符串加密(16进制)
+//字符串加密(16进制)
++ (NSString *)encyptPKCS5:(NSString *)plainText WithKey:(NSString *)key
+    {
+        // Convert hexadecimal string key to a byte array
+        uint8_t *keyBytes = (uint8_t *)hexStringToBytes(key);
 
-    //把string 转NSData
-    // NSData* data = [plainText dataUsingEncoding:NSUTF8StringEncoding];
+        // Convert hexadecimal string to a byte array
+        uint8_t *data = (uint8_t *)hexStringToBytes(plainText);
 
-    //length
-    // size_t plainTextBufferSize = [data length];
+        // Calculate the size of the decrypted data
+        size_t dataLength = [plainText length] / 2;
+        size_t decryptedDataLength = dataLength;
 
-    // const void *vplainText = (const void *)[data bytes];
+        // Create a buffer to hold the decrypted data
+        uint8_t *decryptedData = malloc(decryptedDataLength);
 
-    char *hexPlainText = [FlutterAesEcbPkcs5Plugin convertHexStrToChar:plainText];
-    //char *hexPlainText = malloc(16);
-    //memset(hexPlainText, '0', 16);
+        // Attempt to decrypt the data
+        CCCryptorStatus cryptStatus = CCCrypt(kCCEncrypt, kCCAlgorithmAES, kCCOptionECBMode,
+                                              keyBytes, kCCKeySizeAES256, NULL,
+                                              data, dataLength,
+                                              decryptedData, decryptedDataLength,
+                                              &decryptedDataLength);
 
-    uint8_t *bufferPtr = NULL;
-    size_t bufferPtrSize = 0;
-    size_t movedBytes = 0;
+        // Check for decryption errors
+        if (cryptStatus != kCCSuccess) {
+            // Handle error
+        }
 
-    bufferPtrSize = (strlen(hexPlainText) + kCCBlockSizeAES128) & ~(kCCBlockSizeAES128 - 1);
-    bufferPtr = malloc( bufferPtrSize * sizeof(uint8_t));
-    memset((void *)bufferPtr, 0x0, bufferPtrSize);
-    
-    //解密hex加密的密钥
+        // Convert the decrypted data to a hexadecimal string
+        NSString *decryptedString = bytesToHexString(decryptedData, decryptedDataLength);
 
-    char *publicKey = [FlutterAesEcbPkcs5Plugin convertHexStrToChar:key];
-    //char *publicKey = malloc(16);
-    //memset(publicKey, '0', 16);
-    ////
-    NSLog(@"vkey->len->%d",strlen(publicKey));
+        // Free the allocated memory
+        free(keyBytes);
+        free(data);
+        free(decryptedData);
 
-    //配置CCCrypt
-    CCCryptorStatus ccStatus = CCCrypt(kCCEncrypt,
-                                       kCCAlgorithmAES128, //3DES
-                                       kCCOptionPKCS7Padding|kCCOptionECBMode, //设置模式
-                                       publicKey,    //key
-                                       kCCKeySizeAES256,
-                                       nil,     //偏移量，这里不用，设置为nil;不用的话，必须为nil,不可以为@“”
-                                    //    vplainText,
-                                       hexPlainText,
-                                    //    plainTextBufferSize,
-                                       strlen(hexPlainText),
-                                       (void *)bufferPtr,
-                                       bufferPtrSize,
-                                       &movedBytes);
-
-    if (ccStatus == kCCSuccess) {
-        // (NSString *) stringResult = [FlutterAesEcbPkcs5Plugin convertHexStrToChar:key];
-
-        NSData *myData = [NSData dataWithBytes:(const char *)bufferPtr length:(NSUInteger)movedBytes];
-
-        NSString *result = [FlutterAesEcbPkcs5Plugin hexStringForData:myData];
-        return result;
-        //16进制(你也可以换成base64等)
-        // NSUInteger          len = [myData length];
-        // char *              chars = (char *)[myData bytes];
-        // NSMutableString *   hexString = [[NSMutableString alloc] init];
-
-        // for(NSUInteger i = 0; i < len; i++ )
-        //     // [hexString appendString:NSString chars[i]];
-        //     [hexString appendString:[NSString stringWithFormat:@"%02x", chars[i]]];
-        // return hexString;
+        // Return the decrypted string
+        return decryptedString;
     }
-
-    free(bufferPtr);
-    return nil;
-
-}
-
 
 //解密
 +(NSString *)decrypPKCS5:(NSString *)encryptText WithKey:(NSString *)key
@@ -225,23 +196,42 @@ NSString * bytesToHexString(void *bytes, NSUInteger length) {
 }
 
 
-+ (char *)convertHexStrToChar:(NSString *)hexString {
++ (unsigned char *)convertHexStrToChar:(NSString *)hexString {
 
+    // Calculate the length of the character array
     int mallocLen = [hexString length] / 2 + 1;
 
-    char *myBuffer = (unsigned char *)malloc(mallocLen);
+    // Allocate memory for the character array
+    unsigned char *myBuffer = (unsigned char *)malloc(mallocLen);
 
+    // Initialize all elements in the array to the null character
     memset(myBuffer,'\0',mallocLen);
 
+    // Iterate over the input hexadecimal string in pairs of characters
     for (int i = 0; i < [hexString length] - 1; i += 2) {
         unsigned int anInt;
         NSString * hexCharStr = [hexString substringWithRange:NSMakeRange(i, 2)];
-        NSScanner * scanner = [[NSScanner alloc] initWithString:hexCharStr];
-        [scanner scanHexInt:&anInt];
-        myBuffer[i / 2] = (char)anInt;
+
+        // Check if the current pair of characters is "00"
+        if ([hexCharStr isEqualToString:@"00"]) {
+            // If it is, store the value 0x01 instead of 0x00
+            // in the character array to avoid truncating the array
+            anInt = 0x01;
+        } else {
+            // Otherwise, use the NSScanner to convert the hexadecimal value
+            NSScanner * scanner = [[NSScanner alloc] initWithString:hexCharStr];
+            [scanner scanHexInt:&anInt];
+        }
+
+        // Convert the unsigned int value to a char and store it in the array
+        myBuffer[i / 2] = (unsigned char)anInt;
     }
+
+    // Return the character array containing the converted values
     return myBuffer;
 }
+
+
 
 + (NSString *)hexStringFromString:(NSString *)string{
     NSData *myD = [string dataUsingEncoding:NSUTF8StringEncoding];
